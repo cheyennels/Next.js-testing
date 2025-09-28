@@ -9,9 +9,20 @@ import {
 } from './definitions';
 import { formatCurrency } from './utils';
 
-const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
+const sql = process.env.POSTGRES_URL 
+  ? postgres(process.env.POSTGRES_URL, { 
+      ssl: { rejectUnauthorized: false },
+      connection: {
+        application_name: 'nextjs-dashboard'
+      }
+    })
+  : null;
 
 export async function fetchRevenue() {
+  if (!sql) {
+    return [];
+  }
+  
   try {
     // Artificially delay a response for demo purposes.
     // Don't do this in production :)
@@ -26,11 +37,15 @@ export async function fetchRevenue() {
     return data;
   } catch (error) {
     console.error('Database Error:', error);
-    throw new Error('Failed to fetch revenue data.');
+    return [];
   }
 }
 
 export async function fetchLatestInvoices() {
+  if (!sql) {
+    return [];
+  }
+  
   try {
     const data = await sql<LatestInvoiceRaw[]>`
       SELECT invoices.amount, customers.name, customers.image_url, customers.email, invoices.id
@@ -46,11 +61,20 @@ export async function fetchLatestInvoices() {
     return latestInvoices;
   } catch (error) {
     console.error('Database Error:', error);
-    throw new Error('Failed to fetch the latest invoices.');
+    return [];
   }
 }
 
 export async function fetchCardData() {
+  if (!sql) {
+    return {
+      numberOfCustomers: 0,
+      numberOfInvoices: 0,
+      totalPaidInvoices: '$0.00',
+      totalPendingInvoices: '$0.00',
+    };
+  }
+  
   try {
     // You can probably combine these into a single SQL query
     // However, we are intentionally splitting them to demonstrate
@@ -81,7 +105,12 @@ export async function fetchCardData() {
     };
   } catch (error) {
     console.error('Database Error:', error);
-    throw new Error('Failed to fetch card data.');
+    return {
+      numberOfCustomers: 0,
+      numberOfInvoices: 0,
+      totalPaidInvoices: '$0.00',
+      totalPendingInvoices: '$0.00',
+    };
   }
 }
 
@@ -90,6 +119,10 @@ export async function fetchFilteredInvoices(
   query: string,
   currentPage: number,
 ) {
+  if (!sql) {
+    return [];
+  }
+  
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
   try {
@@ -117,11 +150,15 @@ export async function fetchFilteredInvoices(
     return invoices;
   } catch (error) {
     console.error('Database Error:', error);
-    throw new Error('Failed to fetch invoices.');
+    return [];
   }
 }
 
 export async function fetchInvoicesPages(query: string) {
+  if (!sql) {
+    return 0;
+  }
+  
   try {
     const data = await sql`SELECT COUNT(*)
     FROM invoices
@@ -138,11 +175,15 @@ export async function fetchInvoicesPages(query: string) {
     return totalPages;
   } catch (error) {
     console.error('Database Error:', error);
-    throw new Error('Failed to fetch total number of invoices.');
+    return 0;
   }
 }
 
 export async function fetchInvoiceById(id: string) {
+  if (!sql) {
+    return null;
+  }
+  
   try {
     const data = await sql<InvoiceForm[]>`
       SELECT
@@ -163,11 +204,15 @@ export async function fetchInvoiceById(id: string) {
     return invoice[0];
   } catch (error) {
     console.error('Database Error:', error);
-    throw new Error('Failed to fetch invoice.');
+    return null;
   }
 }
 
 export async function fetchCustomers() {
+  if (!sql) {
+    return [];
+  }
+  
   try {
     const customers = await sql<CustomerField[]>`
       SELECT
@@ -180,11 +225,15 @@ export async function fetchCustomers() {
     return customers;
   } catch (err) {
     console.error('Database Error:', err);
-    throw new Error('Failed to fetch all customers.');
+    return [];
   }
 }
 
 export async function fetchFilteredCustomers(query: string) {
+  if (!sql) {
+    return [];
+  }
+  
   try {
     const data = await sql<CustomersTableType[]>`
 		SELECT
@@ -213,6 +262,6 @@ export async function fetchFilteredCustomers(query: string) {
     return customers;
   } catch (err) {
     console.error('Database Error:', err);
-    throw new Error('Failed to fetch customer table.');
+    return [];
   }
 }
